@@ -1,0 +1,7 @@
+name = "AttentionLayer"
+uuid = "3ee63b08-73c5-50c8-acc9-f395aa68c39a"
+authors = ["SCiarella <simoneciarella@gmail.com>"]
+version = "0.1.0"
+
+[compat]
+julia = "1.10"
