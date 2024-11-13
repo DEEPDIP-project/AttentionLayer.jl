@@ -1,11 +1,10 @@
 module AttentionLayer
 
-"""
-    hi = hello_world()
-A simple function to return "Hello, World!"
-"""
-function hello_world()
-    return "Hello, World!"
-end
+using CUDA: CUDA
+ArrayType = CUDA.functional() ? CUDA.CuArray : Array
+
+include("model.jl")
+
+export create_CNO, create_CNOdownsampler, create_CNOupsampler, create_CNOactivation
 
 end

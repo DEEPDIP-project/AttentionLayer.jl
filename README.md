@@ -12,6 +12,20 @@
 [![All Contributors](https://img.shields.io/github/all-contributors/DEEPDIP-project/AttentionLayer.jl?labelColor=5e1ec7&color=c0ffee&style=flat-square)](#contributors)
 [![BestieTemplate](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/JuliaBesties/BestieTemplate.jl/main/docs/src/assets/badge.json)](https://github.com/JuliaBesties/BestieTemplate.jl)
 
+This package implements the [attention mechanism](https://arxiv.org/abs/1706.03762) as a Lux layer.
+It can then be used for [closure modeling](https://github.com/DEEPDIP-project/CoupledNODE.jl).
+
+## Install
+
+```julia
+using Pkg
+Pkg.add("git@github.com:DEEPDIP-project/AttentionLayer.jl.git")
+```
+
+## Usage
+
+Look in `test/` for examples on how to use the package.
+
 ## How to Cite
 
 If you use AttentionLayer.jl in your work, please cite using the reference given in [CITATION.cff](https://github.com/DEEPDIP-project/AttentionLayer.jl/blob/main/CITATION.cff).

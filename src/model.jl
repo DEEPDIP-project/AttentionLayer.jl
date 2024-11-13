@@ -1,7 +1,7 @@
 using Lux: Lux
 using LuxCore: AbstractLuxLayer
 
-struct AttentionLayer{F} <: AbstractLuxLayer
+struct attention{F} <: AbstractLuxLayer
     T::Type
     N::Int
     d::Int
@@ -13,7 +13,7 @@ struct AttentionLayer{F} <: AbstractLuxLayer
     init_weight::F
 end
 
-function AttentionLayer(
+function attention(
     N::Int,
     d::Int,
     emb_size::Int,
@@ -25,14 +25,14 @@ function AttentionLayer(
     @assert N % patch_size == 0 "N must be divisible by patch_size"
     n_patches = (div(N, patch_size))^d
     dh = div(emb_size, n_heads)
-    AttentionLayer(T, N, d, emb_size, patch_size, n_patches, n_heads, dh, init_weight)
+    attention(T, N, d, emb_size, patch_size, n_patches, n_heads, dh, init_weight)
 end
 
 # We also need to specify how to initialize the parameters and states.
 
 function Lux.initialparameters(
     rng::AbstractRNG,
-    (; T, N, d, emb_size, patch_size, n_patches, dh, n_heads, init_weight)::AttentionLayer,
+    (; T, N, d, emb_size, patch_size, n_patches, dh, n_heads, init_weight)::attention,
 )
     (;
         # the attention weights have this size
@@ -49,7 +49,7 @@ end
 
 function Lux.initialstates(
     rng::AbstractRNG,
-    (; T, N, d, emb_size, patch_size, n_patches, dh, n_heads)::AttentionLayer,
+    (; T, N, d, emb_size, patch_size, n_patches, dh, n_heads)::attention,
 )
     (;
         T = T,
@@ -64,19 +64,19 @@ function Lux.initialstates(
     )
 end
 function Lux.parameterlength(
-    (; N, d, n_heads, dh, emb_size, patch_size, n_patches)::AttentionLayer,
+    (; N, d, n_heads, dh, emb_size, patch_size, n_patches)::attention,
 )
     3 * n_heads * dh * (emb_size + 1) +
     patch_size * patch_size * d * emb_size +
     emb_size +
     N * N * d * n_patches * n_heads * dh
 end
-Lux.statelength(::AttentionLayer) = 9
+Lux.statelength(::attention) = 9
 
 # This is what each layer does:
 # expected input shape: [N, N, d, batch]
 # expected output shape: [N, N, d, batch]
-function ((;)::AttentionLayer)(x, params, state)
+function ((;)::attention)(x, params, state)
     N = state.N
     d = state.d
     np = state.n_patches
