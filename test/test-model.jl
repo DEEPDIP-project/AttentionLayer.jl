@@ -3,7 +3,7 @@ using Lux
 using AttentionLayer: attention
 using ComponentArrays: ComponentArray
 using CoupledNODE: cnn
-using Random: Xoshiro
+using Random
 using Zygote: Zygote
 
 @testset "Transformer Model" begin

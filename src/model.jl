@@ -1,5 +1,6 @@
 using Lux: Lux
 using LuxCore: AbstractLuxLayer
+using Random: AbstractRNG
 
 struct attention{F} <: AbstractLuxLayer
     T::Type
