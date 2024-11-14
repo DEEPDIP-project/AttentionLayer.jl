@@ -13,4 +13,7 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
 ComponentArrays = "0.15"
+LuxCore = "1"
+CUDA = "5"
+Lux = "1"
 julia = "1.10"
