@@ -1,7 +1,6 @@
 [deps]
 AttentionLayer = "3ee63b08-73c5-50c8-acc9-f395aa68c39a"
 ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
-CoupledNODE = "88291d29-22ea-41b1-bc0b-03785bffce48"
 Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"

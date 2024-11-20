@@ -2,7 +2,6 @@ using Test
 using Lux
 using AttentionLayer: attention
 using ComponentArrays: ComponentArray
-using CoupledNODE: cnn
 using Random
 using Zygote: Zygote
 
@@ -19,16 +18,22 @@ using Zygote: Zygote
     rng = Xoshiro(123)
 
     # Test CNN Layer Setup
-    CnnLayers, _, _ = cnn(;
-        T = T,
-        D = D,
-        data_ch = 2 * D,                     # Input channels for CNN after concatenation
-        radii = [3, 3],
-        channels = [2, 2],
-        activations = [tanh, identity],
-        use_bias = [false, false],
-        rng,
-    )
+    r =
+        [3, 3], c =
+            [2, 2], σ =
+                [tanh, identity], b =
+                    [false, false], CnnLayers = (
+                        (
+                            Lux.Conv(
+                                ntuple(α -> 2r[i] + 1, D),
+                                c[i] => c[i+1],
+                                σ[i];
+                                use_bias = b[i],
+                                init_weight = glorot_uniform_T,
+                                pad = (ntuple(α -> 2r[i] + 1, D) .- 1) .÷ 2,
+                            ) for i in eachindex(r)
+                        )...,
+                    )
 
     # Verify CNN layers' setup
     @test CnnLayers != nothing
