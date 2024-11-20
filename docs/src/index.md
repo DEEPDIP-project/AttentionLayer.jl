@@ -4,7 +4,7 @@ CurrentModule = AttentionLayer
 
 # AttentionLayer
 
-Documentation for [AttentionLayer](https://github.com/DEEPDIP-project/AttentionLayer.jl).
+This is the documentation for [AttentionLayer](https://github.com/DEEPDIP-project/AttentionLayer.jl).
 
 ## Contributors
 
