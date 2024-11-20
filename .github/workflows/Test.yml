@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    tags: ["*"]
+    #tags: ["*"] #uncomment the line if you want to run the workflow only when a new tag is pushed
   workflow_dispatch:
 
 jobs:

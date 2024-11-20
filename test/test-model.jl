@@ -10,30 +10,29 @@ using Zygote: Zygote
     # Define parameters for the model
     T = Float32
     D = 2
-    N = 32       # Define the spatial dimension for the attention layer input
-    emb_size = 16
+    N = 16       # Define the spatial dimension for the attention layer input
+    emb_size = 8
     patch_size = 4
     n_heads = 2
     d = emb_size ÷ n_heads  # Dimension per attention head
     rng = Xoshiro(123)
 
     # Test CNN Layer Setup
-    r =
-        [3, 3], c =
-            [2, 2], σ =
-                [tanh, identity], b =
-                    [false, false], CnnLayers = (
-                        (
-                            Lux.Conv(
-                                ntuple(α -> 2r[i] + 1, D),
-                                c[i] => c[i+1],
-                                σ[i];
-                                use_bias = b[i],
-                                init_weight = glorot_uniform_T,
-                                pad = (ntuple(α -> 2r[i] + 1, D) .- 1) .÷ 2,
-                            ) for i in eachindex(r)
-                        )...,
-                    )
+    r = [3]
+    c = [4, 2]
+    σ = [tanh]
+    b = [false]
+    CnnLayers = (
+        (
+            Lux.Conv(
+                ntuple(α -> 2r[i] + 1, D),
+                c[i] => c[i+1],
+                σ[i];
+                use_bias = b[i],
+                pad = (ntuple(α -> 2r[i] + 1, D) .- 1) .÷ 2,
+            ) for i in eachindex(r)
+        )...,
+    )
 
     # Verify CNN layers' setup
     @test CnnLayers != nothing
