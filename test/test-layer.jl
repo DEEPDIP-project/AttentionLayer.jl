@@ -5,7 +5,7 @@ using ComponentArrays: ComponentArray
 using Random
 using Zygote: Zygote
 
-@testset "Transformer Model" begin
+@testset "Attention Layer" begin
 
     # Define parameters for the model
     T = Float32
@@ -14,7 +14,6 @@ using Zygote: Zygote
     emb_size = 8
     patch_size = 4
     n_heads = 2
-    d = emb_size ÷ n_heads  # Dimension per attention head
     rng = Xoshiro(123)
 
     # Test CNN Layer Setup

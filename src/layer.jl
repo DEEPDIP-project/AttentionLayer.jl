@@ -23,6 +23,9 @@ function attention(
     T = Float32,
     init_weight = Lux.glorot_uniform,
 )
+    if d != 2
+        @error "This implementation only supports 2D data on 2 channels (https://github.com/DEEPDIP-project/AttentionLayer.jl/issues/14)"
+    end
     @assert N % patch_size == 0 "N must be divisible by patch_size"
     n_patches = (div(N, patch_size))^d
     dh = div(emb_size, n_heads)
