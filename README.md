@@ -19,7 +19,7 @@ It can then be used for [closure modeling](https://github.com/DEEPDIP-project/Co
 
 ```julia
 using Pkg
-Pkg.add("git@github.com:DEEPDIP-project/AttentionLayer.jl.git")
+Pkg.add(url="git@github.com:DEEPDIP-project/AttentionLayer.jl.git")
 ```
 
 ## Usage
