@@ -24,7 +24,50 @@ Pkg.add(url="git@github.com:DEEPDIP-project/AttentionLayer.jl.git")
 
 ## Usage
 
-Look in `test/` for examples on how to use the package.
+You are probably interested in using the `attentioncnn` model, which is a built-in cnn that uses the attention mechanism.
+Here is an example of how to use it:
+
+* first you have to define the parameters of the model
+
+```julia
+    T = Float32 # the type of the data
+    N = 16 # size of the input
+    D = 2 # number of channels
+    rng = Xoshiro(123) # random number generator
+    r = [2, 2] # radii of the attention mechanism
+    c = [4, 2] # number of features of the intermediate layers
+    σ = [tanh, identity] # activation functions
+    b = [true, false] # use bias
+    emb_sizes = [8, 8] # size of the embeddings
+    patch_sizes = [8, 5] # size of the patches in which the attention mechanism is applied
+    n_heads = [2, 2] # number of heads of the attention mechanism
+    use_attention = [true, true] # use the attention at this layer
+    sum_attention = [false, false] # use attention in sum mode instead of concat mode (BUG)
+```
+
+* then you can call the model
+
+```julia
+    closure, θ, st = attentioncnn(
+        T = T,
+        N = N,
+        D = D,
+        data_ch = D,
+        radii = r,
+        channels = c,
+        activations = σ,
+        use_bias = b,
+        use_attention = use_attention,
+        emb_sizes = emb_sizes,
+        patch_sizes = patch_sizes,
+        n_heads = n_heads,
+        sum_attention = sum_attention,
+        rng = rng,
+        use_cuda = false,
+    )
+```
+
+Look in `test/` for more examples about how to use the package.
 
 ## How to Cite
 

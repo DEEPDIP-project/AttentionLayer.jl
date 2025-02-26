@@ -70,10 +70,15 @@ end
 function Lux.parameterlength(
     (; N, d, n_heads, dh, emb_size, patch_size, n_patches)::attention,
 )
-    3 * n_heads * dh * (emb_size + 1) +
-    patch_size * patch_size * d * emb_size +
-    emb_size +
-    N * N * d * n_patches * n_heads * dh
+    size_wQ = n_heads * dh * (emb_size + 1)
+    size_wK = n_heads * dh * (emb_size + 1)
+    size_wV = n_heads * dh * (emb_size + 1)
+    size_Ew = emb_size * patch_size * patch_size * d
+    size_Eb = emb_size
+    size_U = N * N * d * n_patches * n_heads * dh
+
+    total_size = size_wQ + size_wK + size_wV + size_Ew + size_Eb + size_U
+    return total_size
 end
 Lux.statelength(::attention) = 9
 

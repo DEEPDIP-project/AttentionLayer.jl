@@ -60,4 +60,7 @@ using Zygote: Zygote
     grad = Zygote.gradient(θ -> sum(abs2, closure(input_tensor, θ, st)[1]), θ)
     @test !isnothing(grad)  # Ensure gradients were successfully computed
 
+    y, back = Zygote.pullback(θ -> sum(abs2, closure(input_tensor, θ, st)[1]), θ)
+    @test y == sum(abs2, closure(input_tensor, θ, st)[1])
+
 end
