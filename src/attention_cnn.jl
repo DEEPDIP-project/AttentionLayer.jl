@@ -279,7 +279,7 @@ function uncrop_center_concat(x, y)
     end_idx = start_idx + M - 1
 
     out = zeros(eltype(x), (N, N, size(x, D + 1) + size(y, D + 1), size(x, D + 2)))
-    out[:, :, 1:size(x, D + 1), :] .= x
-    out[start_idx:end_idx, start_idx:end_idx, size(x, D + 1)+1:end, :] .= y
+    out[:, :, 1:size(x, D + 1), :] = x
+    out[start_idx:end_idx, start_idx:end_idx, size(x, D + 1)+1:end, :] = y
     out
 end
