@@ -27,7 +27,7 @@ using OrdinaryDiffEqTsit5
     b = [true, false]
     emb_sizes = [4, 4]
     Ns = reverse([N + 2 * sum(r[1:i]) for i = 1:length(r)])
-    patch_sizes = [2, 2]
+    patch_sizes = [8, 5]
     n_heads = [2, 2]
     use_attention = [true, true]
     sum_attention = [false, false]
@@ -155,7 +155,7 @@ using OrdinaryDiffEqTsit5
     end
     tmp1, tmp2 = back(λ)
     @test size(tmp1) == (18, 18, 2)
-    @test size(tmp2) == (1383262,)
+    @test size(tmp2) == (94118,)
 
     # Final integration test of the entire train interface
     l, trainstate = CoupledNODE.train(

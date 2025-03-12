@@ -80,9 +80,6 @@ function attentioncnn(;
         @assert Ns[i] % patch_sizes[i] == 0 "Patch size must be a divisor of the spatial dimension"
     end
 
-    # Add a layer that reshapes the data to the desired spatial dimensions
-    #depad_layer = create_depad(N)
-
     # Create the convolutional block
     conv_block = ()
     for i in eachindex(r)
@@ -178,27 +175,6 @@ function decollocate(u)
 end
 
 """
-If input is larger than expected, clip it to the expected size.
-This is caused by the fact that a-posteriori dataloader include a padding,
-so we want to process a-priori and a-posteriori in the same way.
-"""
-function create_depad(N)
-    function depad(u)
-        s0 = size(u)
-        D = ndims(u) - 2
-        if all(s0[1:D] .== N)
-            return u
-        end
-        # I expect the padding to be the same for each dim
-        start_idx = div(s0[1] - N, 2) + 1
-        end_idx = start_idx + N - 1
-        slices = eachslice(u; dims = D + 1)
-        clipped_slices = map(x -> x[start_idx:end_idx, start_idx:end_idx, :], slices)
-        stack(clipped_slices; dims = D + 1)
-    end
-end
-
-"""
 Crop the center of the input array to the desired size.
 
 # Arguments
@@ -271,15 +247,13 @@ function uncrop_center_concat(x, y)
     D = ndims(x) - 2
     N = s0[1]
     M = size(y, 1)
+
     if N == M
         return cat(x, y; dims = D + 1)
     end
 
-    start_idx = div(N - M, 2) + 1
-    end_idx = start_idx + M - 1
+    pad_size = div(N - M, 2)
+    padded_y = pad_constant(y, (pad_size, pad_size, 0, 0), 0)
 
-    out = zeros(eltype(x), (N, N, size(x, D + 1) + size(y, D + 1), size(x, D + 2)))
-    out[:, :, 1:size(x, D + 1), :] = x
-    out[start_idx:end_idx, start_idx:end_idx, size(x, D + 1)+1:end, :] = y
-    out
+    cat(x, padded_y; dims = D + 1)
 end
