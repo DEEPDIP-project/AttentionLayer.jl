@@ -18,7 +18,7 @@ using OrdinaryDiffEqTsit5
     # Define parameters for the model
     nles = 16
     T = Float32
-    N = nles + 2 # Do NOT forget to consider that our data include the bc
+    N = nles
     D = 2
     rng = Xoshiro(123)
     r = [2, 2]
@@ -26,6 +26,7 @@ using OrdinaryDiffEqTsit5
     σ = [tanh, identity]
     b = [true, false]
     emb_sizes = [4, 4]
+    Ns = reverse([N + 2 * sum(r[1:i]) for i = 1:length(r)])
     patch_sizes = [2, 2]
     n_heads = [2, 2]
     use_attention = [true, true]
@@ -34,7 +35,6 @@ using OrdinaryDiffEqTsit5
     # Create the model
     closure, θ_start, st = attentioncnn(
         T = T,
-        N = N,
         D = D,
         data_ch = D,
         radii = r,
@@ -43,6 +43,7 @@ using OrdinaryDiffEqTsit5
         use_bias = b,
         use_attention = use_attention,
         emb_sizes = emb_sizes,
+        Ns = Ns,
         patch_sizes = patch_sizes,
         n_heads = n_heads,
         sum_attention = sum_attention,
@@ -125,7 +126,7 @@ using OrdinaryDiffEqTsit5
     # For testing reason, explicitely set up the probelm
     # Notice that this is automatically done in CoupledNODE
     u, t = dataloader_post()
-    griddims = Zygote.@ignore ((:) for _ = 1:(ndims(u)-2))
+    griddims = ((:) for _ = 1:(ndims(u)-2))
     x = u[griddims..., :, 1]
     y = u[griddims..., :, 2:end] # remember to discard sol at the initial time step
     tspan, dt, prob, pred = nothing, nothing, nothing, nothing # initialize variable outside allowscalar do.

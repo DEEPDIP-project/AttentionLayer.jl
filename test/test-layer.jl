@@ -12,7 +12,7 @@ using Zygote: Zygote
     D = 2
     N = 16       # Define the spatial dimension for the attention layer input
     emb_size = 8
-    patch_size = 4
+    patch_size = 8
     n_heads = 2
     rng = Xoshiro(123)
 

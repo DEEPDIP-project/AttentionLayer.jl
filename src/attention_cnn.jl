@@ -4,14 +4,13 @@ using Random: Random
 using ComponentArrays: ComponentArray
 
 """
-    attentioncnn(; T, N, D, data_ch, radii, channels, activations, use_bias, use_attention, emb_sizes, patch_sizes, n_heads, sum_attention, rng = Random.default_rng(), use_cuda)
+    attentioncnn(; T, D, data_ch, radii, channels, activations, use_bias, use_attention, emb_sizes, Ns, patch_sizes, n_heads, sum_attention, rng = Random.default_rng(), use_cuda)
 
 Constructs a convolutional neural network model `closure(u, θ)` that predicts the commutator error (i.e. closure).
 Before every convolutional layer, the input is augmented with the attention mechanism.
 
 # Arguments
 - `T`: The data type of the model (default: `Float32`).
-- `N`: The spatial dimension for the attention layer input.
 - `D`: The data dimension.
 - `data_ch`: The number of data channels (usually should be equal to `D`).
 - `radii`: An array (size n_layers) with the radii of the kernels for the convolutional layers. Kernels will be symmetrical of size `2r+1`.
@@ -20,6 +19,7 @@ Before every convolutional layer, the input is augmented with the attention mech
 - `use_bias`: An array (size n_layers) with booleans indicating whether to use bias in each convolutional layer.
 - `use_attention`: A boolean indicating whether to use the attention mechanism.
 - `emb_sizes`: An array (size n_layers) with the embedding sizes for the attention mechanism.
+- `Ns`: The spatial dimension for all the attention layers.
 - `patch_sizes`: An array (size n_layers) with the patch sizes for the attention mechanism.
 - `n_heads`: An array (size n_layers) with the number of heads for the attention mechanism.
 - `sum_attention`: An array (size n_layers) with booleans indicating whether to sum the attention output with the input.
@@ -34,7 +34,6 @@ A tuple `(chain, params, state)` where
 """
 function attentioncnn(;
     T = Float32,
-    N,
     D,
     data_ch,
     radii,
@@ -43,6 +42,7 @@ function attentioncnn(;
     use_bias,
     use_attention,
     emb_sizes,
+    Ns,
     patch_sizes,
     n_heads,
     sum_attention,
@@ -74,8 +74,14 @@ function attentioncnn(;
     # Syver uses a (single!) padder layer instead of adding padding to the convolutional layers
     # This padding will circulary add dimensions equal to the sum of the radii so they can be shaved layer by layer
     padder = ntuple(α -> (u -> pad_circular(u, sum(r); dims = α)), D)
-    Ns = reverse([N + 2 * sum(r[1:i]) for i = 1:length(r)])
-    @warn "With the single padding approach you get N= $Ns, so set patch sizes accordingly for the inner layers"
+
+    for i = 1:length(Ns)
+        #assert that Ns[i] is divisible by patch_sizes[i]
+        @assert Ns[i] % patch_sizes[i] == 0 "Patch size must be a divisor of the spatial dimension"
+    end
+
+    # Add a layer that reshapes the data to the desired spatial dimensions
+    #depad_layer = create_depad(N)
 
     # Create the convolutional block
     conv_block = ()
@@ -85,6 +91,7 @@ function attentioncnn(;
         if use_attention[i]
             attention_layer = Lux.Chain(
                 # Use a convolution to get data on 2 channels only (https://github.com/DEEPDIP-project/AttentionLayer.jl/issues/14)
+                # And also to
                 Conv(
                     ntuple(α -> 2r[i] + 1, D),
                     c[i] => 2,
@@ -93,14 +100,16 @@ function attentioncnn(;
                     init_weight = glorot_uniform_T,
                     pad = (ntuple(α -> 2r[i] + 1, D) .- 1) .÷ 2,
                 ),
+                u -> crop_center(u, Ns[i]),
                 attention(Ns[i], 2, emb_sizes[i], patch_sizes[i], n_heads[i]; T = T),
             )
             skip_connection = Lux.SkipConnection(
                 attention_layer,
                 if sum_attention[i]
-                    (x, y) -> x + y
+                    @error "Sum attention not implemented yet"
+                    (x, y) -> uncrop_center_sum(x, y)
                 else
-                    (x, y) -> cat(x, y; dims = D + 1)
+                    (att, conv) -> uncrop_center_concat(conv, att)
                 end,
                 name = "Attention $i",
             )
@@ -166,4 +175,111 @@ function decollocate(u)
     slices = eachslice(u; dims = D + 1)
     staggered_slices = map(x -> interpolate(x, D, -1), enumerate(slices))
     stack(staggered_slices; dims = D + 1)
+end
+
+"""
+If input is larger than expected, clip it to the expected size.
+This is caused by the fact that a-posteriori dataloader include a padding,
+so we want to process a-priori and a-posteriori in the same way.
+"""
+function create_depad(N)
+    function depad(u)
+        s0 = size(u)
+        D = ndims(u) - 2
+        if all(s0[1:D] .== N)
+            return u
+        end
+        # I expect the padding to be the same for each dim
+        start_idx = div(s0[1] - N, 2) + 1
+        end_idx = start_idx + N - 1
+        slices = eachslice(u; dims = D + 1)
+        clipped_slices = map(x -> x[start_idx:end_idx, start_idx:end_idx, :], slices)
+        stack(clipped_slices; dims = D + 1)
+    end
+end
+
+"""
+Crop the center of the input array to the desired size.
+
+# Arguments
+- `x`: The input array of size `[N, N, d, b]`.
+- `M`: The desired size of the output array.
+
+# Returns
+An array `y` of size `[M, M, d, b]` cropped from the center of `x`.
+"""
+function crop_center(x, M)
+    s0 = size(x)
+    D = ndims(x) - 2
+    N = s0[1]
+
+    start_idx = div(N - M, 2) + 1
+    end_idx = start_idx + M - 1
+
+    slices = eachslice(x; dims = D + 1)
+    cropped_slices = map(x -> x[start_idx:end_idx, start_idx:end_idx, :], slices)
+    stack(cropped_slices; dims = D + 1)
+end
+
+"""
+Add the input array `y` to the center of the array `x`.
+
+# Arguments
+- `x`: The original array of size `[N, N, d, b]`.
+- `y`: The array to be added to the center of `x`, of size `[M, M, d, b]`.
+
+# Returns
+An array `z` of size `[N, N, d, b]` with `y` added to the center of `x`.
+"""
+function uncrop_center(x, y)
+    s0 = size(x)
+    D = ndims(x) - 2
+    N = s0[1]
+    M = size(y, 1)
+
+    start_idx = div(N - M, 2) + 1
+    end_idx = start_idx + M - 1
+
+    slices_x = eachslice(x; dims = D + 1)
+    slices_y = eachslice(y; dims = D + 1)
+
+    updated_slices = map(
+        (sx, sy) -> begin
+            sx[start_idx:end_idx, start_idx:end_idx, :] += sy
+            sx
+        end,
+        slices_x,
+        slices_y,
+    )
+
+    stack(updated_slices; dims = D + 1)
+end
+
+
+"""
+Concatenate the input array `y` to the center of the array `x` along the third dimension.
+
+# Arguments
+- `x`: The original array of size `[N, N, d, b]`.
+- `y`: The array to be concatenated to the center of `x`, of size `[M, M, d, b]`.
+
+# Returns
+An array `z` of size `[N, N, d + d', b]` with `y` concatenated to the center of `x` along the third dimension.
+"""
+function uncrop_center_concat(x, y)
+    s0 = size(x)
+    D = ndims(x) - 2
+    N = s0[1]
+    M = size(y, 1)
+    if N == M
+        return cat(x, y; dims = D + 1)
+    end
+
+    start_idx = div(N - M, 2) + 1
+    end_idx = start_idx + M - 1
+
+    out = zeros(eltype(x), (N, N, size(x, D + 1) + size(y, D + 1), size(x, D + 2)))
+    out[:, :, 1:size(x, D + 1), :] .= x
+    out[start_idx:end_idx, start_idx:end_idx, size(x, D + 1)+1:end, :] .= y
+    out
 end
