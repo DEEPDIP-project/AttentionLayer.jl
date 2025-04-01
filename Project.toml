@@ -4,19 +4,31 @@ authors = ["SCiarella <simoneciarella@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
 JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
+LuxCUDA = "d0bbae9a-e099-4d5b-a835-1c6931763bda"
 LuxCore = "bb33d45b-7691-41d6-9220-0943567d0623"
 NNlib = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
+[sources]
+CoupledNODE = {rev = "main", url = "https://github.com/DEEPDIP-project/CoupledNODE.jl.git"}
+NeuralClosure = {rev = "main", url = "https://github.com/DEEPDIP-project/NeuralClosure.jl.git"}
+
 [compat]
+Atomix = "1.1.1"
 CUDA = "5"
+ChainRulesCore = "1.25.1"
 ComponentArrays = "0.15"
 JuliaFormatter = "1.0.62"
+KernelAbstractions = "0.9.34"
 Lux = "1"
+LuxCUDA = "0.3.3"
 LuxCore = "1"
 NNlib = "0.9.27"
 julia = "1.10"
@@ -32,10 +44,6 @@ OrdinaryDiffEqTsit5 = "b1df2697-797e-41e3-8120-5422d3b24e4a"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
-
-[sources]
-NeuralClosure = {rev = "main", url = "https://github.com/DEEPDIP-project/NeuralClosure.jl.git"}
-CoupledNODE = {rev = "main", url="https://github.com/DEEPDIP-project/CoupledNODE.jl.git"}
 
 [targets]
 test = ["Test", "Adapt", "CoupledNODE", "IncompressibleNavierStokes", "JLD2", "NeuralClosure", "Optimisers", "OrdinaryDiffEqTsit5", "TestItemRunner", "Zygote"]
