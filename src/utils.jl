@@ -196,14 +196,14 @@ function attention_scores(A, V)
     end
 
     #Define the kernel to compute the attention scores
-    @kernel inbounds = true function attention_kernel!(SA, A, V, dh)
+    @kernel inbounds = true function attention_kernel!(SA, A, V, n_patches)
         h, p, d, b = @index(Global, NTuple)
-        for i = 1:dh
-            SA[h, p, d, b] = A[h, d, i, b] * V[h, p, i, b]
+        for i = 1:n_patches
+            SA[h, p, d, b] = A[h, p, i, b] * V[h, i, d, b]
         end
     end
 
-    attention_kernel!(backend, workgroupsize)(SA, A, V, dh; ndrange = size(SA))
+    attention_kernel!(backend, workgroupsize)(SA, A, V, n_patches; ndrange = size(SA))
     return SA
 end
 
@@ -225,11 +225,18 @@ function ChainRulesCore.rrule(::typeof(attention_scores), A, V)
     function attention_score_pb(ΔSA)  # Backward pass
 
         # Define the kernel to compute the gradients
-        @kernel inbounds = true function attention_grad_kernel!(dA, dV, ΔSA, A, V, dh)
+        @kernel inbounds = true function attention_grad_kernel!(
+            dA,
+            dV,
+            ΔSA,
+            A,
+            V,
+            n_patches,
+        )
             h, p, d, b = @index(Global, NTuple)
-            for i = 1:dh
-                @atomic dA[h, d, i, b] += ΔSA[h, p, d, b] * V[h, p, i, b]
-                @atomic dV[h, p, i, b] += ΔSA[h, p, d, b] * A[h, d, i, b]
+            for i = 1:n_patches
+                @atomic dA[h, p, i, b] += ΔSA[h, p, d, b] * V[h, i, d, b]
+                @atomic dV[h, i, d, b] += ΔSA[h, p, d, b] * A[h, p, i, b]
             end
         end
 
@@ -239,7 +246,7 @@ function ChainRulesCore.rrule(::typeof(attention_scores), A, V)
             ΔSA,
             A,
             V,
-            dh;
+            n_patches;
             ndrange = size(ΔSA),
         )
 

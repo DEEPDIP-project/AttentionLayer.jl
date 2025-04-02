@@ -106,7 +106,9 @@ function attentioncnn(;
                     @error "Sum attention not implemented yet"
                     (x, y) -> uncrop_center_sum(x, y)
                 else
-                    (att, conv) -> uncrop_center_concat(conv, att)
+                    (att, conv) -> begin
+                        uncrop_center_concat(conv, att)
+                    end
                 end,
                 name = "Attention $i",
             )
