@@ -2,7 +2,7 @@ using CUDA
 using Random: AbstractRNG
 using KernelAbstractions
 using Atomix: @atomic
-using ChainRulesCore    
+using ChainRulesCore
 
 function compute_QKV(x, W)
     n_heads, dh, emb_size = size(W)
@@ -16,18 +16,23 @@ function compute_QKV(x, W)
         backend = CPU()
         workgroupsize = 64
     end
-    @info "types: x $(typeof(x)), W $(typeof(W)), y $(typeof(y))"
 
     # Define the kernel function
-    @kernel inbounds=true function QKV_kernel!(y, x, W)
+    @kernel inbounds = true function QKV_kernel!(y, x, W, emb_size)
         h, p, d, b = @index(Global, NTuple)  # Get the global thread indices
 
-        for i in 1:emb_size  # Contract over the embedding space
+        for i = 1:emb_size # Contract over the embedding space
             @atomic y[h, p, d, b] += x[i, p, b] * W[h, d, i]
         end
     end
 
-    QKV_kernel!(backend, workgroupsize)(y, x, W; ndrange = (n_heads, n_patches, dh, batch))
+    QKV_kernel!(backend, workgroupsize)(
+        y,
+        x,
+        W,
+        emb_size;
+        ndrange = (n_heads, n_patches, dh, batch),
+    )
     return y
 end
 
@@ -48,35 +53,41 @@ function ChainRulesCore.rrule(::typeof(compute_QKV), x, W)
     end
 
     function QKV_pb(Δy)  # Backward pass
-        @warn " I am in the qkv PB!"
         # Kernel to compute dX
-        @kernel inbounds=true function grad_x_kernel!(dX, Δy, W)
+        @kernel inbounds = true function grad_x_kernel!(dX, Δy, W, n_heads, dh)
             i, p, b = @index(Global, NTuple)
-            for h in 1:n_heads, d in 1:dh
+            for h = 1:n_heads, d = 1:dh
                 @atomic dX[i, p, b] += Δy[h, p, d, b] * W[h, d, i]
             end
         end
 
         # Kernel to compute dW
-        @kernel inbounds=true function grad_w_kernel!(dW, Δy, x)
+        @kernel inbounds = true function grad_w_kernel!(dW, Δy, x, n_patches, batch)
             h, d, i = @index(Global, NTuple)
-            for p in 1:n_patches, b in 1:batch
+            for p = 1:n_patches, b = 1:batch
                 @atomic dW[h, d, i] += Δy[h, p, d, b] * x[i, p, b]
             end
         end
 
-        grad_x_kernel!(backend, workgroupsize)(dX, Δy, W; ndrange = size(dX))
-        grad_w_kernel!(backend, workgroupsize)(dW, Δy, x; ndrange = size(dW))
+        grad_x_kernel!(backend, workgroupsize)(dX, Δy, W, n_heads, dh; ndrange = size(dX))
+        grad_w_kernel!(backend, workgroupsize)(
+            dW,
+            Δy,
+            x,
+            n_patches,
+            batch;
+            ndrange = size(dW),
+        )
 
         return NoTangent(), dX, dW
     end
 
-    return y,QKV_pb 
+    return y, QKV_pb
 end
 
 
-function compute_attention(Q, K)
-    n_heads, n_patches, dh, batch= size(Q)
+function attention_weights(Q, K)
+    n_heads, n_patches, dh, batch = size(Q)
 
     # Initialize output tensor
     if Q isa CuArray || (Q isa SubArray && parent(Q) isa CuArray)
@@ -90,26 +101,32 @@ function compute_attention(Q, K)
     end
 
     # Define kernel to perform matrix multiplication (Q * K^T)
-    @kernel function attention_kernel!(A, Q, K)
-        h, p, b = @index(Global, NTuple)  # Get the global thread indices
+    @kernel function attention_kernel!(A, Q, K, n_patches)
+        h, d, b = @index(Global, NTuple)  # Get the global thread indices
 
         # Perform the dot product of Q and K^T
-        for i in 1:n_patches
-            for j in 1:n_patches
-                # Perform the dot product for the current head, patch, and batch
-                A[h, i, j, b] = sum(Q[h, i, :, b] .* K[h, j, :, b])
+        for i = 1:n_patches
+            for j = 1:n_patches
+                # Perform the dot product for the current head, patch, embedded coord, and batch
+                @atomic A[h, i, j, b] += Q[h, i, d, b] * K[h, j, d, b]
             end
         end
     end
 
     # Run the kernel
-    attention_kernel!(backend, workgroupsize)(A, Q, K; ndrange = (n_heads, n_patches, batch))
+    attention_kernel!(backend, workgroupsize)(
+        A,
+        Q,
+        K,
+        n_patches;
+        ndrange = (n_heads, dh, batch),
+    )
 
     return A
 end
 
-function ChainRulesCore.rrule(::typeof(compute_attention), Q, K)
-    A = compute_attention(Q, K)  # Forward pass
+function ChainRulesCore.rrule(::typeof(attention_weights), Q, K)
+    A = attention_weights(Q, K)  # Forward pass
     n_heads, n_patches, dh, batch = size(Q)
 
     # Initialize gradients
@@ -125,32 +142,109 @@ function ChainRulesCore.rrule(::typeof(compute_attention), Q, K)
         workgroupsize = 64
     end
 
-    function compute_attention_pb(ΔA)
-        @warn " I am in the attention PB!"
+    function attention_weights_pb(ΔA)
 
         # Define kernel for gradient wrt Q and K
-        @kernel function attention_kernel_Qgrad!(dQ, K, ΔA)
+        @kernel function attention_kernel_Qgrad!(dQ, K, ΔA, n_patches)
             h, i, d, b = @index(Global, NTuple)  # Get the global thread indices
-            
-            for j in 1:n_patches
-                # check indices if correct matematically
+
+            for j = 1:n_patches
                 @atomic dQ[h, i, d, b] += ΔA[h, i, j, b] * K[h, j, d, b]
             end
         end
 
         # Define kernel for gradient wrt Q and K
-        @kernel function attention_kernel_Kgrad!(dK, Q, ΔA)
+        @kernel function attention_kernel_Kgrad!(dK, Q, ΔA, n_patches)
             h, j, d, b = @index(Global, NTuple)  # Get the global thread indices
 
-            for i in 1:n_patches
+            for i = 1:n_patches
                 @atomic dK[h, j, d, b] += ΔA[h, i, j, b] * Q[h, i, d, b]
             end
         end
         # Run the kernel to compute gradients
-        attention_kernel_Qgrad!(backend, workgroupsize)(dQ, K, ΔA; ndrange = (n_heads, n_patches, dh, batch))
-        attention_kernel_Kgrad!(backend, workgroupsize)(dK, Q, ΔA; ndrange = (n_heads, n_patches, dh, batch))
+        attention_kernel_Qgrad!(backend, workgroupsize)(
+            dQ,
+            K,
+            ΔA,
+            n_patches;
+            ndrange = (n_heads, n_patches, dh, batch),
+        )
+        attention_kernel_Kgrad!(backend, workgroupsize)(
+            dK,
+            Q,
+            ΔA,
+            n_patches;
+            ndrange = (n_heads, n_patches, dh, batch),
+        )
 
         return NoTangent(), dQ, dK
     end
-    return A, compute_attention_pb
+    return A, attention_weights_pb
+end
+
+
+function attention_scores(A, V)
+    n_heads, n_patches, dh, batch = size(V)
+    if V isa CuArray || (V isa SubArray && parent(V) isa CuArray)
+        SA = CUDA.zeros(eltype(A), n_heads, n_patches, dh, batch)
+        backend = CUDABackend()
+        workgroupsize = 256
+    else
+        SA = zeros(eltype(A), n_heads, n_patches, dh, batch)
+        backend = CPU()
+        workgroupsize = 64
+    end
+
+    #Define the kernel to compute the attention scores
+    @kernel inbounds = true function attention_kernel!(SA, A, V, dh)
+        h, p, d, b = @index(Global, NTuple)
+        for i = 1:dh
+            SA[h, p, d, b] = A[h, d, i, b] * V[h, p, i, b]
+        end
+    end
+
+    attention_kernel!(backend, workgroupsize)(SA, A, V, dh; ndrange = size(SA))
+    return SA
+end
+
+function ChainRulesCore.rrule(::typeof(attention_scores), A, V)
+    n_heads, n_patches, dh, batch = size(V)
+    SA = attention_scores(A, V)  # Forward pass
+    if A isa CuArray || (A isa SubArray && parent(A) isa CuArray)
+        dA = CUDA.zeros(eltype(A), size(A))
+        dV = CUDA.zeros(eltype(V), size(V))
+        backend = CUDABackend()
+        workgroupsize = 256
+    else
+        dA = zeros(eltype(A), size(A))
+        dV = zeros(eltype(V), size(V))
+        backend = CPU()
+        workgroupsize = 64
+    end
+
+    function attention_score_pb(ΔSA)  # Backward pass
+
+        # Define the kernel to compute the gradients
+        @kernel inbounds = true function attention_grad_kernel!(dA, dV, ΔSA, A, V, dh)
+            h, p, d, b = @index(Global, NTuple)
+            for i = 1:dh
+                @atomic dA[h, d, i, b] += ΔSA[h, p, d, b] * V[h, p, i, b]
+                @atomic dV[h, p, i, b] += ΔSA[h, p, d, b] * A[h, d, i, b]
+            end
+        end
+
+        attention_grad_kernel!(backend, workgroupsize)(
+            dA,
+            dV,
+            ΔSA,
+            A,
+            V,
+            dh;
+            ndrange = size(ΔSA),
+        )
+
+        return NoTangent(), dA, dV
+    end
+
+    return SA, attention_score_pb
 end

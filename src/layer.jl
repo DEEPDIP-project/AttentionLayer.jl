@@ -65,7 +65,7 @@ function Lux.initialstates(
         d = d,
         emb_size = emb_size,
         patch_size = patch_size,
-        n_patches = n_patches, # total number of patches 
+        n_patches = n_patches, # total number of patches
         n_heads = n_heads,
         dh = dh,
         sqrtDh = T(sqrt(dh)),
@@ -75,9 +75,9 @@ end
 function Lux.parameterlength(
     (; N, d, n_heads, dh, emb_size, patch_size, n_patches)::attention,
 )
-    size_wQ = n_heads * dh * emb_size 
-    size_wK = n_heads * dh * emb_size 
-    size_wV = n_heads * dh * emb_size 
+    size_wQ = n_heads * dh * emb_size
+    size_wK = n_heads * dh * emb_size
+    size_wV = n_heads * dh * emb_size
     size_Ew = emb_size * patch_size * patch_size * d
     size_Eb = emb_size
     size_U = N * N * d * n_patches * n_heads * dh
@@ -111,53 +111,10 @@ function ((;)::attention)(x, params, state)
     batch = size(x, ndims(x))
 
     # (1) Split the image into patches
-    ##The subarray of x here is by default a copy, but it can be a view (its not edited)
-    #x_patches = [
-    #    @view(x[(i*ps+1):(i*ps+ps), (j*ps+1):(j*ps+ps), :, :]) for
-    #    i = 0:(num_patches_1d-1), j = 0:(num_patches_1d-1)
-    #]
-    ## (2) flatten the patches
-    ## reshape is fine and will not create a copy here, as only the first dims are merged, and because julia
-    ## is column order, this does not change the shape of the underlying data, this is true for all following reshapes
-    #x_pflat = [reshape(p, ps * ps * d, size(p, ndims(p))) for p in x_patches]
-    #
-    ## (3) project the patches onto the embedding space
-    #x_emb = map(p -> Ew * p .+ Eb, x_pflat)
-    #
-    ## (4) positional embedding
-    ## notice that we use 1D positional embedding, as suggested [here](https://arxiv.org/pdf/2010.11929)
-    #if x isa CuArray
-    #    ones_mask = CUDA.ones(state.T, 1, size(x_emb[1])[2:end]...)
-    #else
-    #    ones_mask = ones(state.T, 1, size(x_emb[1])[2:end]...)
-    #end
-    #x_lemb = [
-    #    cat(p, ones_mask * i; dims = 1) for
-    #    (i, p) in enumerate(x_emb)
-    #]
-    #
-    ## (5) compute the attention scores
-    ## [!] notice that you can not reuse some variable names otherwise Zygote gets confused
-    #Q0 = [wQ[i, :, :] * x_lemb[patchi] for i = 1:n_heads, patchi = 1:np]
-    #K0 = [wK[i, :, :] * x_lemb[patchi] for i = 1:n_heads, patchi = 1:np]
-    #V0 = [wV[i, :, :] * x_lemb[patchi] for i = 1:n_heads, patchi = 1:np]
-    ## Reshape Q, K, V to match desired output dimensions
-    #Q = reshape(vcat(Q0...), (n_heads, np, dh, size(x, ndims(x))))
-    #K = reshape(vcat(K0...), (n_heads, np, dh, size(x, ndims(x))))
-    #V = reshape(vcat(V0...), (n_heads, np, dh, size(x, ndims(x))))
-    #
-    ## (6) Compute attention scores without mutations
-    #A = [Lux.softmax(Q[i, p, :, :] .* K[i, p, :, :] / sqrtDh) for i = 1:n_heads, p = 1:np]
-    #A = reshape(vcat(A...), (n_heads, np, dh, size(x, ndims(x))))
-    #SA = A .* V
-    ## above is wrong cause it is softmaxing in the wrong dimension and it is doing Q*K instead of Q*K^T
-
-
-    # (1) Split the image into patches
     x_patches = reshape(x, ps, num_patches_1d, ps, num_patches_1d, d, batch)
     x_patches = permutedims(x_patches, (1, 3, 5, 2, 4, 6))
     # (2) flatten the patches
-    x_patches = reshape(x_patches, ps*ps*d, :)
+    x_patches = reshape(x_patches, ps * ps * d, :)
     # (3) project the patches onto the embedding space
     x_emb = Ew * x_patches .+ Eb
     x_emb = reshape(x_emb, size(x_emb, 1), num_patches_1d, num_patches_1d, batch)
@@ -172,18 +129,16 @@ function ((;)::attention)(x, params, state)
     K = compute_QKV(x_lemb, wK)
     V = compute_QKV(x_lemb, wV)
 
-
     # (6) Compute attention scores
-    A = compute_attention(Q, K)
-    A = Lux.softmax(A / sqrtDh, dims=3)
-    SA = A .* V
+    A = attention_weights(Q, K)
+    A = Lux.softmax(A / sqrtDh, dims = 3)
+    A = attention_scores(A, V)
 
     # (7) multihead attention
-    MSA = reshape(SA, n_heads * np * dh, size(x, ndims(x)))
+    MSA = reshape(A, n_heads * np * dh, size(x, ndims(x)))
     MSA = U * MSA
     MSA = reshape(MSA, size(x)...)
 
     # Attention layer does not modify state
     MSA, state
 end
-

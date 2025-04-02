@@ -31,7 +31,7 @@ closure = Lux.Chain(attention_layer)
     @testset "Output dimensions" begin
         @test size(output[1]) == (N, N, D, batch)  # Check output size
         @test typeof(output[1][1]) == T  # Check output type
-        @test output[2] == st 
+        @test output[2] == st
         @test output[1] != input_tensor
     end
 
@@ -39,9 +39,14 @@ closure = Lux.Chain(attention_layer)
         # Test Differentiability by calculating gradients
         grad = Zygote.gradient(θ -> sum(abs2, closure(input_tensor, θ, st)[1]), θ)
         @test !isnothing(grad)  # Ensure gradients were successfully computed
+        @test sum(grad) != 0.0  # Ensure gradients are not zero
 
         y, back = Zygote.pullback(θ -> sum(abs2, closure(input_tensor, θ, st)[1]), θ)
         @test y == sum(abs2, closure(input_tensor, θ, st)[1])
+        y_bar = ones(T, size(y))
+        θ_bar = back(y_bar)
+        @test θ_bar != nothing
+        @test sum(θ_bar) != 0.0  # Ensure gradients are not zero
     end
 
 end
@@ -64,23 +69,25 @@ end
     input_tensor = CUDA.rand(T, N, N, D, batch)  # Example input with shape (N, N, D, batch_size)
     output = closure(input_tensor, θ, st)
 
-    return
     @testset "Output dimensions" begin
         @test size(output[1]) == (N, N, D, batch)  # Check output size
-        @test typeof(output[1][1]) == T  # Check output type
-        @test output[2] == st 
+        @test output[2] == st
         @test output[1] != input_tensor
         @test isa(output[1], CuArray)  # Check if output is on GPU
     end
 
-    return
     @testset "AD" begin
         # Test Differentiability by calculating gradients
         grad = Zygote.gradient(θ -> sum(abs2, closure(input_tensor, θ, st)[1]), θ)
         @test !isnothing(grad)  # Ensure gradients were successfully computed
+        @test sum(grad) != 0.0  # Ensure gradients are not zero
 
         y, back = Zygote.pullback(θ -> sum(abs2, closure(input_tensor, θ, st)[1]), θ)
         @test y == sum(abs2, closure(input_tensor, θ, st)[1])
+        y_bar = CUDA.ones(T, size(y))
+        θ_bar = back(y_bar)
+        @test θ_bar != nothing
+        @test sum(θ_bar) != 0.0  # Ensure gradients are not zero
     end
 
 end
