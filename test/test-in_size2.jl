@@ -89,5 +89,5 @@ end
     input_tensor = CUDA.rand(T, N, N, D, batch)
     output = closure(input_tensor, θ, st)
     @test size(output[1]) == (N, N, D, batch)  # Check final output size
-    
+
 end
