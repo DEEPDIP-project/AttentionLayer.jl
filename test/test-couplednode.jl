@@ -177,6 +177,13 @@ sum_attention = [false, false]
 end
 
 @testset "CoupledNode integration (GPU)" begin
+    if !CUDA.functional()
+        @testset "CUDA not available" begin
+            @test true
+        end
+        return
+    end
+
     # Create the model
     closure, θ_start, st = attentioncnn(
         T = T,
