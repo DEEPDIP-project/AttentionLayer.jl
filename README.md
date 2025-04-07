@@ -27,7 +27,7 @@ Pkg.add(url="git@github.com:DEEPDIP-project/AttentionLayer.jl.git")
 You are probably interested in using the `attentioncnn` model, which is a built-in cnn that uses the attention mechanism.
 Here is an example of how to use it:
 
-* first you have to define the parameters of the model
+* first you define the parameters of the model
 
 ```julia
     T = Float32 # the type of the data
