@@ -56,12 +56,12 @@ sum_attention = [false, false]
     @test size(output[1]) == (N, N, D, batch)  # Check final output size
 
     pad_input_tensor = rand(T, N + 2, N + 2, D, batch)
-    pad_input_tensor[2:end-1, 2:end-1, :, :] = input_tensor
+    pad_input_tensor[2:(end-1), 2:(end-1), :, :] = input_tensor
     pad_output = closure(pad_input_tensor, θ, st)
     @test size(pad_output[1]) == (N + 2, N + 2, D, batch)
 
     pad_input_tensor = rand(T, N + 10, N + 10, D, batch)
-    pad_input_tensor[6:end-5, 6:end-5, :, :] = input_tensor
+    pad_input_tensor[6:(end-5), 6:(end-5), :, :] = input_tensor
     pad_output = closure(pad_input_tensor, θ, st)
     @test size(pad_output[1]) == (N + 10, N + 10, D, batch)
 
@@ -100,12 +100,12 @@ end
     @test size(output[1]) == (N, N, D, batch)  # Check final output size
 
     pad_input_tensor = CUDA.rand(T, N + 2, N + 2, D, batch)
-    CUDA.@allowscalar pad_input_tensor[2:end-1, 2:end-1, :, :] = input_tensor
+    CUDA.@allowscalar pad_input_tensor[2:(end-1), 2:(end-1), :, :] = input_tensor
     pad_output = closure(pad_input_tensor, θ, st)
     @test size(pad_output[1]) == (N + 2, N + 2, D, batch)
 
     pad_input_tensor = CUDA.rand(T, N + 10, N + 10, D, batch)
-    CUDA.@allowscalar pad_input_tensor[6:end-5, 6:end-5, :, :] = input_tensor
+    CUDA.@allowscalar pad_input_tensor[6:(end-5), 6:(end-5), :, :] = input_tensor
     pad_output = closure(pad_input_tensor, θ, st)
     @test size(pad_output[1]) == (N + 10, N + 10, D, batch)
 
