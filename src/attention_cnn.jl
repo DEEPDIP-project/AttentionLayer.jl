@@ -88,7 +88,6 @@ function attentioncnn(;
         if use_attention[i]
             attention_layer = Lux.Chain(
                 # Use a convolution to get data on 2 channels only (https://github.com/DEEPDIP-project/AttentionLayer.jl/issues/14)
-                # And also to
                 Conv(
                     ntuple(α -> 2r[i] + 1, D),
                     c[i] => 2,
