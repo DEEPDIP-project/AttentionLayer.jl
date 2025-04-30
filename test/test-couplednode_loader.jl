@@ -18,7 +18,7 @@ using OrdinaryDiffEqTsit5
 @testset "CoupledNode loader (CPU)" begin
     NS = Base.get_extension(CoupledNODE, :NavierStokes)
     conf = NS.read_config("./config.yaml")
-    conf["params"]["backend"] = CPU()
+    conf["params"]["backend"] = IncompressibleNavierStokes.CPU()
 
     closure, θ_start, st = NS.load_model(conf)
     device = x -> adapt(Array, x)
