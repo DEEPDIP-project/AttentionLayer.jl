@@ -1,6 +1,5 @@
 using Lux
 using NNlib: pad_circular
-using Random: Random
 using ComponentArrays: ComponentArray
 
 """

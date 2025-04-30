@@ -2,7 +2,7 @@ using Test
 using Adapt
 using Lux
 using JLD2
-using AttentionLayer: attention, attentioncnn
+using AttentionLayer: attention, attentioncnn, CPU
 using ComponentArrays: ComponentArray
 using Optimisers: Adam, ClipGrad, OptimiserChain
 using Random
