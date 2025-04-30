@@ -1,7 +1,5 @@
 using Lux: Lux
 using LuxCore: AbstractLuxLayer
-using CUDA
-using Random: AbstractRNG
 using NNlib: batched_mul
 
 struct attention{F} <: AbstractLuxLayer

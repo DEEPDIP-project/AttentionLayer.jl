@@ -1,6 +1,3 @@
-using CUDA
-using Random: AbstractRNG
-using KernelAbstractions
 using Atomix: @atomic
 using ChainRulesCore
 
@@ -13,7 +10,7 @@ function compute_QKV(x, W)
         workgroupsize = 256
     else
         y = zeros(eltype(x), n_heads, n_patches, dh, batch)
-        backend = CPU()
+        backend = KernelAbstractions.CPU()
         workgroupsize = 64
     end
 
@@ -48,7 +45,7 @@ function ChainRulesCore.rrule(::typeof(compute_QKV), x, W)
     else
         dX = zeros(eltype(x), size(x))
         dW = zeros(eltype(W), size(W))
-        backend = CPU()
+        backend = KernelAbstractions.CPU()
         workgroupsize = 64
     end
 
@@ -69,17 +66,23 @@ function ChainRulesCore.rrule(::typeof(compute_QKV), x, W)
             end
         end
 
-        grad_x_kernel!(backend, workgroupsize)(dX, Δy, W, n_heads, dh; ndrange = size(dX))
-        grad_w_kernel!(backend, workgroupsize)(
-            dW,
-            Δy,
-            x,
-            n_patches,
-            batch;
-            ndrange = size(dW),
-        )
+        tdX = @thunk begin
+            grad_x_kernel!(backend, workgroupsize)(dX, Δy, W, n_heads, dh; ndrange = size(dX))
+            dX
+        end
+        tdW = @thunk begin
+            grad_w_kernel!(backend, workgroupsize)(
+                dW,
+                Δy,
+                x,
+                n_patches,
+                batch;
+                ndrange = size(dW),
+            )
+            dW
+        end
 
-        return NoTangent(), dX, dW
+        return NoTangent(), tdX, tdW
     end
 
     return y, QKV_pb
@@ -96,7 +99,7 @@ function attention_weights(Q, K)
         workgroupsize = 256
     else
         A = zeros(eltype(Q), n_heads, n_patches, n_patches, batch)
-        backend = CPU()
+        backend = KernelAbstractions.CPU()
         workgroupsize = 64
     end
 
@@ -128,6 +131,7 @@ end
 function ChainRulesCore.rrule(::typeof(attention_weights), Q, K)
     A = attention_weights(Q, K)  # Forward pass
     n_heads, n_patches, dh, batch = size(Q)
+    kernel_ranges = (n_heads, n_patches, dh, batch)
 
     # Initialize gradients
     if Q isa CuArray || (Q isa SubArray && parent(Q) isa CuArray)
@@ -138,7 +142,7 @@ function ChainRulesCore.rrule(::typeof(attention_weights), Q, K)
     else
         dQ = zeros(eltype(Q), size(Q))
         dK = zeros(eltype(K), size(K))
-        backend = CPU()
+        backend = KernelAbstractions.CPU()
         workgroupsize = 64
     end
 
@@ -162,22 +166,28 @@ function ChainRulesCore.rrule(::typeof(attention_weights), Q, K)
             end
         end
         # Run the kernel to compute gradients
-        attention_kernel_Qgrad!(backend, workgroupsize)(
-            dQ,
-            K,
-            ΔA,
-            n_patches;
-            ndrange = (n_heads, n_patches, dh, batch),
-        )
-        attention_kernel_Kgrad!(backend, workgroupsize)(
-            dK,
-            Q,
-            ΔA,
-            n_patches;
-            ndrange = (n_heads, n_patches, dh, batch),
-        )
+        tdQ = @thunk begin
+            attention_kernel_Qgrad!(backend, workgroupsize)(
+                dQ,
+                K,
+                ΔA,
+                n_patches;
+                ndrange = kernel_ranges,
+            )
+            dQ
+        end
+        tdK = @thunk begin
+            attention_kernel_Kgrad!(backend, workgroupsize)(
+                dK,
+                Q,
+                ΔA,
+                n_patches;
+                ndrange = kernel_ranges,
+            )
+            dK
+        end
 
-        return NoTangent(), dQ, dK
+        return NoTangent(), tdQ, tdK
     end
     return A, attention_weights_pb
 end
@@ -191,7 +201,7 @@ function attention_scores(A, V)
         workgroupsize = 256
     else
         SA = zeros(eltype(A), n_heads, n_patches, dh, batch)
-        backend = CPU()
+        backend = KernelAbstractions.CPU()
         workgroupsize = 64
     end
 
@@ -218,7 +228,7 @@ function ChainRulesCore.rrule(::typeof(attention_scores), A, V)
     else
         dA = zeros(eltype(A), size(A))
         dV = zeros(eltype(V), size(V))
-        backend = CPU()
+        backend = KernelAbstractions.CPU()
         workgroupsize = 64
     end
 

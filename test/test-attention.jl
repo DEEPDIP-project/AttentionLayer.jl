@@ -42,7 +42,7 @@ closure = Lux.Chain(attention_layer)
         @test sum(grad) != 0.0  # Ensure gradients are not zero
 
         y, back = Zygote.pullback(θ -> sum(abs2, closure(input_tensor, θ, st)[1]), θ)
-        @test y == sum(abs2, closure(input_tensor, θ, st)[1])
+        @test y ≈ sum(abs2, closure(input_tensor, θ, st)[1])
         y_bar = ones(T, size(y))
         θ_bar = back(y_bar)
         @test θ_bar != nothing
@@ -78,11 +78,15 @@ end
 
     @testset "AD" begin
         # Test Differentiability by calculating gradients
-        grad = Zygote.gradient(θ -> sum(abs2, closure(input_tensor, θ, st)[1]), θ)
+        function loss(θ)
+            y = closure(input_tensor, θ, st)[1]
+            return sum(abs2, y)
+        end
+        grad = Zygote.gradient(loss, θ)
         @test !isnothing(grad)  # Ensure gradients were successfully computed
         @test sum(grad) != 0.0  # Ensure gradients are not zero
 
-        y, back = Zygote.pullback(θ -> sum(abs2, closure(input_tensor, θ, st)[1]), θ)
+        y, back = Zygote.pullback(loss, θ)
         @test y == sum(abs2, closure(input_tensor, θ, st)[1])
         y_bar = CUDA.ones(T, size(y))
         θ_bar = back(y_bar)

@@ -1,7 +1,9 @@
 module AttentionLayer
 
-using CUDA: CUDA
+using CUDA
 ArrayType = CUDA.functional() ? CUDA.CuArray : Array
+using Random: Random, AbstractRNG
+using KernelAbstractions
 
 include("utils.jl")
 include("layer.jl")
