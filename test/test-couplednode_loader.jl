@@ -55,8 +55,6 @@ end
     @info "CNN warm up run"
     u = randn(Float32, 32 + 2, 32 + 2, 2, 10) |> device
     θ = θ_start |> device
-    #u = CUDA.rand(Float32, 32+2, 32+2, 2, 10)
-    #θ = θ_start |> Lux.gpu_device()
     output, _ = closure(u, θ, st)
 
     @test size(output) == (32 + 2, 32 + 2, 2, 10)

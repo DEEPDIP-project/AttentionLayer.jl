@@ -156,7 +156,7 @@ sum_attention = [false, false]
     end
     tmp1, tmp2 = back(λ)
     @test size(tmp1) == (18, 18, 2)
-    @test size(tmp2) == (94194,)
+    @test size(tmp2) == (2266,)
 
     # Final integration test of the entire train interface
     l, trainstate = CoupledNODE.train(
@@ -308,7 +308,7 @@ end
     end
     tmp1, tmp2 = back(λ)
     @test size(tmp1) == (18, 18, 2)
-    @test size(tmp2) == (94194,)
+    @test size(tmp2) == (2266,)
     @test isa(tmp1, CuArray)  # Check if tmp1 is on GPU
 
     # Final integration test of the entire train interface

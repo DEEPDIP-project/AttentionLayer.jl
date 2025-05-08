@@ -12,3 +12,6 @@ coverage
 docs/build/
 env
 node_modules
+
+# Large file
+test/data_train_real.jld2

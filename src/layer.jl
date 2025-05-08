@@ -47,9 +47,12 @@ function Lux.initialparameters(
         Ew = init_weight(rng, T, emb_size, patch_size * patch_size * d),
         Eb = zeros(T, emb_size),
         # then the multihead attention output matrix
-        U = init_weight(rng, T, N * N * d, n_patches * n_heads * dh),
-        # and the positional embedding
+        #U = init_weight(rng, T, N * N * d, n_patches * n_heads * dh),
+        U = init_weight(rng, T, emb_size, emb_size),  # i.e., 128 × 128
+        # the positional embedding
         pos_emb = init_weight(rng, T, emb_size, div(N, patch_size), div(N, patch_size)),
+        # and a final decoder
+        dec = init_weight(rng, T, patch_size * patch_size * d, emb_size),  # (2738, 128)
     )
 end
 
@@ -78,12 +81,15 @@ function Lux.parameterlength(
     size_wV = n_heads * dh * emb_size
     size_Ew = emb_size * patch_size * patch_size * d
     size_Eb = emb_size
-    size_U = N * N * d * n_patches * n_heads * dh
-
-    total_size = size_wQ + size_wK + size_wV + size_Ew + size_Eb + size_U
+    #size_U = N * N * d * n_patches * n_heads * dh
+    size_U = emb_size * emb_size
+    size_dec = patch_size * patch_size * d * emb_size
+    size_pos_emb = emb_size * div(N, patch_size) * div(N, patch_size)
+    total_size =
+        size_wQ + size_wK + size_wV + size_Ew + size_Eb + size_U + size_dec + size_pos_emb
     return total_size
 end
-Lux.statelength(::attention) = 11
+Lux.statelength(::attention) = 12
 
 # This is what each layer does:
 # expected input shape: [N, N, d, batch]
@@ -97,6 +103,7 @@ function ((;)::attention)(x, params, state)
     sqrtDh = state.sqrtDh
     n_heads = state.n_heads
     num_patches_1d = state.num_patches_1d
+    emb_size = state.emb_size
 
     Ew = params.Ew
     Eb = params.Eb
@@ -105,6 +112,7 @@ function ((;)::attention)(x, params, state)
     wV = params.wV
     U = params.U
     pos_emb = params.pos_emb
+    dec = params.dec
 
     batch = size(x, ndims(x))
 
@@ -133,10 +141,55 @@ function ((;)::attention)(x, params, state)
     A = attention_scores(A, V)
 
     # (7) multihead attention
-    MSA = reshape(A, n_heads * np * dh, size(x, ndims(x)))
-    MSA = U * MSA
-    MSA = reshape(MSA, size(x)...)
+    #MSA = reshape(A, n_heads * np * dh, size(x, ndims(x)))
+    #MSA = U * MSA
+    #MSA = reshape(MSA, size(x)...)
+
+
+    #A = reshape(A, n_heads * dh, np, batch)  # (emb_size, np, batch)
+    #A_flat = reshape(A, n_heads * dh, :)
+    #MSA = U * A_flat                          # U ∈ (emb_size, emb_size)
+    #MSA = reshape(MSA, n_heads * dh, np, batch)
+    #@info "***********************"
+    #@info "x shape: $(size(x))"
+    #@info "MSA size: $(size(MSA))"
+
+    ## A ∈ (n_heads * dh, np, batch) == (128, 16, batch)
+    #MSA = reshape(MSA, emb_size, np, batch)
+
+    ## Flatten across np × batch
+    #A_flat = reshape(MSA, emb_size, :)         # (128, 16 * batch)
+
+    ## Decode each patch embedding into flattened image patch
+    #decoded_patches = dec * A_flat             # (2738, 16 * batch)
+
+    ## Reshape back into patch layout: (ps, ps, d, np, batch)
+    #decoded_patches = reshape(decoded_patches, ps, ps, d, np, batch)
+
+    ## Reshape np = 4 × 4 back into grid layout
+    #patches_grid = reshape(decoded_patches, ps, ps, d, num_patches_1d, num_patches_1d, batch)
+
+    ## Reorder axes to reconstruct full image
+    #output = permutedims(patches_grid, (1, 4, 2, 5, 3, 6))  # (ps, np1d, ps, np1d, d, batch)
+    #output = reshape(output, N, N, d, batch)               # (148, 148, 2, batch)
+
+    ## Attention layer does not modify state
+    #output, state
+
+
+    # (7) multihead attention
+    # Combine reshapes and matrix multiplications
+    A_flat = reshape(A, n_heads * dh, :)  # (emb_size, np * batch)
+    MSA = U * A_flat                     # Apply U (U ∈ (emb_size, emb_size)) -> (emb_size, np * batch)
+
+    # (8) Decode each patch and reshape directly into the final image layout
+    output = reshape(dec * MSA, ps, ps, d, num_patches_1d, num_patches_1d, batch)
+
+    # (9) Reorder to reconstruct the full image
+    output = permutedims(output, (1, 4, 2, 5, 3, 6))  # (ps, np1d, ps, np1d, d, batch)
+    output = reshape(output, N, N, d, batch)           # (148, 148, 2, batch)
 
     # Attention layer does not modify state
-    MSA, state
+    output, state
+
 end
