@@ -18,9 +18,13 @@ OpenSSL_jll = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
-[sources]
-CoupledNODE = {rev = "main", url = "https://github.com/DEEPDIP-project/CoupledNODE.jl.git"}
-NeuralClosure = {rev = "main", url = "https://github.com/DEEPDIP-project/NeuralClosure.jl.git"}
+[sources.CoupledNODE]
+rev = "main"
+url = "https://github.com/DEEPDIP-project/CoupledNODE.jl.git"
+
+[sources.NeuralClosure]
+rev = "main"
+url = "https://github.com/DEEPDIP-project/NeuralClosure.jl.git"
 
 [compat]
 Atomix = "1.1.1"
@@ -34,7 +38,7 @@ LuxCUDA = "0.3.3"
 LuxCore = "1"
 NNlib = "0.9.27"
 OpenSSL_jll = "3.0.13"
-Zygote = "0.6.76"
+Zygote = "0.6.76, 0.7"
 julia = "1.10"
 
 [extras]
