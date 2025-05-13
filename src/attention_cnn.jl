@@ -86,16 +86,11 @@ function attentioncnn(;
 
         if use_attention[i]
             attention_layer = Lux.Chain(
-                # Use a convolution to get data on 2 channels only (https://github.com/DEEPDIP-project/AttentionLayer.jl/issues/14)
-                Conv(
-                    ntuple(α -> 2r[i] + 1, D),
-                    c[i] => 2,
-                    σ[i];
-                    use_bias = true,
-                    init_weight = glorot_uniform_T,
-                    pad = (ntuple(α -> 2r[i] + 1, D) .- 1) .÷ 2,
-                ),
-                u -> crop_center(u, Ns[i]),
+                # You need the data on 2 channels only (https://github.com/DEEPDIP-project/AttentionLayer.jl/issues/14)
+                # so you can either use Conv+crop_center (older version of this repo) or this
+                u -> u[:, :, :, :, 1:1],
+                AdaptiveMeanPool((Ns[i], Ns[i], 2)),
+                u -> u[:, :, :, :, 1],
                 attention(Ns[i], 2, emb_sizes[i], patch_sizes[i], n_heads[i]; T = T),
             )
             skip_connection = Lux.SkipConnection(
