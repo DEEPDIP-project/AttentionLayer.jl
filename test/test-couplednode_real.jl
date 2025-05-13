@@ -138,7 +138,7 @@ using OrdinaryDiffEqTsit5
     end
     tmp1, tmp2 = back(λ)
     @test size(tmp1) == (nles+2, nles+2, 2)
-    @test size(tmp2) == (789634,)
+    @test size(tmp2) == (789532,)
     @test isa(tmp1, CuArray)  # Check if tmp1 is on GPU
 
     # Final integration test of the entire train interface
