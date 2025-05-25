@@ -21,15 +21,9 @@ using OrdinaryDiffEqTsit5
         end
         return
     end
-    if !isfile("data_train_real.jld2")
-        @testset "data_train_real.jld2 not found" begin
-            @test true
-        end
-        return
-    end
 
     NS = Base.get_extension(CoupledNODE, :NavierStokes)
-    conf = NS.read_config("./config_real.yaml")
+    conf = NS.read_config("./config.yaml")
     conf["params"]["backend"] = CUDABackend()
     nles = conf["params"]["nles"][1]
     T = Float32
@@ -68,27 +62,19 @@ using OrdinaryDiffEqTsit5
     end
 
     # Load data
-    function namedtupleload(file)
-        dict = load(file)
-        k, v = keys(dict), values(dict)
-        pairs = @. Symbol(k) => v
-        (; pairs...)
-    end
-    data_train = []
-    data_i = namedtupleload("data_train_real.jld2")
-    push!(data_train, hcat(data_i))
+    data_train = load("data_train.jld2", "data_test")
 
 
     # Create the io array
     NS = Base.get_extension(CoupledNODE, :NavierStokes)
-    io_train = NS.create_io_arrays_posteriori(data_train, setup)
+    io_train = NS.create_io_arrays_posteriori(data_train, setup[1], device)
 
     # Create the dataloader
     θ = device(copy(θ_start))
     nunroll = 5
     nunroll_valid = 5
     dataloader_post = NS.create_dataloader_posteriori(
-        io_train[1];
+        io_train;
         nunroll = nunroll,
         rng = Random.Xoshiro(24),
         device = device,
@@ -96,33 +82,23 @@ using OrdinaryDiffEqTsit5
 
     # Create the right hand side and the loss
     dudt_nn = NS.create_right_hand_side_with_closure(setup[1], psolver, closure, st)
-    loss = CoupledNODE.create_loss_post_lux(
-        dudt_nn;
-        sciml_solver = Tsit5(),
-        dt = T(conf["params"]["Δt"]),
-        use_cuda = true,
-    )
+    griddims = ((:) for _ = 1:D)
+    loss = CoupledNODE.create_loss_post_lux(dudt_nn, griddims, griddims;)
     callbackstate = trainstate = nothing
 
 
     # For testing reason, explicitely set up the probelm
     # Notice that this is automatically done in CoupledNODE
     u, t = dataloader_post()
-    griddims = ((:) for _ = 1:(ndims(u)-2))
-    x = u[griddims..., :, 1]
-    y = u[griddims..., :, 2:end] # remember to discard sol at the initial time step
+    x = u[griddims..., :, 1, 1]
+    y = u[griddims..., :, 1, 2:end] # remember to discard sol at the initial time step
     tspan, dt, prob, pred = nothing, nothing, nothing, nothing # initialize variable outside allowscalar do.
-    dt = CUDA.allowscalar() do
-        t[2] .- t[1]
-    end
     function get_tspan(t)
         return (Array(t)[1], Array(t)[end])
     end
     tspan = get_tspan(t)
     prob = ODEProblem(dudt_nn, x, tspan, θ)
-    pred = Array(
-        solve(prob, Tsit5(); u0 = x, p = θ, adaptive = false, saveat = Array(t), dt = dt),
-    )
+    pred = Array(solve(prob, Tsit5(); u0 = x, p = θ, adaptive = true, saveat = Array(t)))
 
     # Test the forward pass
     @test size(pred[:, :, :, 2:end]) == size(y)
@@ -138,7 +114,7 @@ using OrdinaryDiffEqTsit5
     end
     tmp1, tmp2 = back(λ)
     @test size(tmp1) == (nles+2, nles+2, 2)
-    @test size(tmp2) == (789532,)
+    @test size(tmp2) == (184144,)
     @test isa(tmp1, CuArray)  # Check if tmp1 is on GPU
 
     # Final integration test of the entire train interface

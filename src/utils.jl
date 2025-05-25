@@ -49,7 +49,8 @@ function ChainRulesCore.rrule(::typeof(compute_QKV), x, W)
         workgroupsize = 64
     end
 
-    function QKV_pb(Δy)  # Backward pass
+    function QKV_pb(y_bar)  # Backward pass
+        Δy = unthunk(y_bar)
         # Kernel to compute dX
         @kernel inbounds = true function grad_x_kernel!(dX, Δy, W, n_heads, dh)
             i, p, b = @index(Global, NTuple)
@@ -146,7 +147,8 @@ function ChainRulesCore.rrule(::typeof(attention_weights), Q, K)
         workgroupsize = 64
     end
 
-    function attention_weights_pb(ΔA)
+    function attention_weights_pb(A_bar)
+        ΔA = unthunk(A_bar)
 
         # Define kernel for gradient wrt Q and K
         @kernel function attention_kernel_Qgrad!(dQ, K, ΔA, n_patches)

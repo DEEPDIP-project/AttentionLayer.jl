@@ -34,7 +34,7 @@ LuxCUDA = "0.3.3"
 LuxCore = "1"
 NNlib = "0.9.27"
 OpenSSL_jll = "3.0.13"
-Zygote = "0.6.76"
+Zygote = "0.7"
 julia = "1.10"
 
 [extras]

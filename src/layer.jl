@@ -141,43 +141,6 @@ function ((;)::attention)(x, params, state)
     A = attention_scores(A, V)
 
     # (7) multihead attention
-    #MSA = reshape(A, n_heads * np * dh, size(x, ndims(x)))
-    #MSA = U * MSA
-    #MSA = reshape(MSA, size(x)...)
-
-
-    #A = reshape(A, n_heads * dh, np, batch)  # (emb_size, np, batch)
-    #A_flat = reshape(A, n_heads * dh, :)
-    #MSA = U * A_flat                          # U ∈ (emb_size, emb_size)
-    #MSA = reshape(MSA, n_heads * dh, np, batch)
-    #@info "***********************"
-    #@info "x shape: $(size(x))"
-    #@info "MSA size: $(size(MSA))"
-
-    ## A ∈ (n_heads * dh, np, batch) == (128, 16, batch)
-    #MSA = reshape(MSA, emb_size, np, batch)
-
-    ## Flatten across np × batch
-    #A_flat = reshape(MSA, emb_size, :)         # (128, 16 * batch)
-
-    ## Decode each patch embedding into flattened image patch
-    #decoded_patches = dec * A_flat             # (2738, 16 * batch)
-
-    ## Reshape back into patch layout: (ps, ps, d, np, batch)
-    #decoded_patches = reshape(decoded_patches, ps, ps, d, np, batch)
-
-    ## Reshape np = 4 × 4 back into grid layout
-    #patches_grid = reshape(decoded_patches, ps, ps, d, num_patches_1d, num_patches_1d, batch)
-
-    ## Reorder axes to reconstruct full image
-    #output = permutedims(patches_grid, (1, 4, 2, 5, 3, 6))  # (ps, np1d, ps, np1d, d, batch)
-    #output = reshape(output, N, N, d, batch)               # (148, 148, 2, batch)
-
-    ## Attention layer does not modify state
-    #output, state
-
-
-    # (7) multihead attention
     # Combine reshapes and matrix multiplications
     A_flat = reshape(A, n_heads * dh, :)  # (emb_size, np * batch)
     MSA = U * A_flat                     # Apply U (U ∈ (emb_size, emb_size)) -> (emb_size, np * batch)

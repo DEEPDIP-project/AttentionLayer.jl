@@ -88,7 +88,7 @@ end
 
         y, back = Zygote.pullback(loss, θ)
         @test y == sum(abs2, closure(input_tensor, θ, st)[1])
-        y_bar = CUDA.ones(T, size(y))
+        y_bar = one(T)
         θ_bar = back(y_bar)
         @test θ_bar != nothing
         @test sum(θ_bar) != 0.0  # Ensure gradients are not zero
