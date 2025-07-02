@@ -1,3 +1,4 @@
+using Adapt: adapt
 using Lux
 using NNlib: pad_circular
 using ComponentArrays: ComponentArray
@@ -51,7 +52,7 @@ function attentioncnn(;
     r, c, σ, b = radii, channels, activations, use_bias
 
     if use_cuda
-        dev = Lux.gpu_device()
+        dev = x -> adapt(CuArray, x)
     else
         dev = Lux.cpu_device()
     end

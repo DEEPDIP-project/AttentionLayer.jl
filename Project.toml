@@ -4,6 +4,7 @@ authors = ["SCiarella <simoneciarella@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
@@ -23,6 +24,7 @@ CoupledNODE = {rev = "main", url = "https://github.com/DEEPDIP-project/CoupledNO
 NeuralClosure = {rev = "main", url = "https://github.com/DEEPDIP-project/NeuralClosure.jl.git"}
 
 [compat]
+Adapt = "4.3.0"
 Atomix = "1.1.1"
 CUDA = "5"
 ChainRulesCore = "1.25.1"
@@ -38,7 +40,6 @@ Zygote = "0.7"
 julia = "1.10"
 
 [extras]
-Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 CoupledNODE = "88291d29-22ea-41b1-bc0b-03785bffce48"
 IncompressibleNavierStokes = "5e318141-6589-402b-868d-77d7df8c442e"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
@@ -50,4 +51,4 @@ TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [targets]
-test = ["Test", "Adapt", "CoupledNODE", "IncompressibleNavierStokes", "JLD2", "NeuralClosure", "Optimisers", "OrdinaryDiffEqTsit5", "TestItemRunner", "Zygote"]
+test = ["Test", "CoupledNODE", "IncompressibleNavierStokes", "JLD2", "NeuralClosure", "Optimisers", "OrdinaryDiffEqTsit5", "TestItemRunner", "Zygote"]
